@@ -1,9 +1,71 @@
+# User Guide of DELFMUT
 
-##Example
+## Introduction
+DELFMUT is a sequencing Depth Estimation model designed for the stable detection of Low-Frequency MUTations in duplex sequencing.
+
+
+
+## Install
+The following python packages need to be installed before running DELFMUT:
+* argparse
+* logging
+* numpy
+* pandas
+* os
+* re
+* scipy
+* functools
+* timeit
+* multiprocessing
+* matplotlib
+* seaborn
+
+
+
+## Usage
+```
+Usage: DELFMUT.py [-h] -o OUTPUT_PATH [-s S] [-r R_BIAS] [-t T_BIAS] [-M MASS_ARRAY [MASS_ARRAY ...]]
+                  [-T T_ARRAY [T_ARRAY ...]] [-V VAF_ARRAY [VAF_ARRAY ...]] [-C VAFCOLOR_ARRAY [VAFCOLOR_ARRAY ...]]
+                  [-L RULE_LIST [RULE_LIST ...]] [-D TARGETDEP_ARRAY [TARGETDEP_ARRAY ...]] [-P DEP]
+                  [-x N_WHOLE_REPEAT] [-y N_TMSAMP_REPEAT] [-z N_DSREPEAT] [-n N_CPU] [-c HEATMAP_COLORMAP] [-d]
+
+options:
+  -h, --help            Show this help message and exit
+  -o, --output_path     Output directory (output_path).
+  -s, --s               The ratio of Double-stranded Templates (s), 0.55 by default.
+  -r, --R_bias          Reads-level strand bias (R_bias), 1.0 by default.
+  -t, --T_bias          Template-level strand bias (T_bias), 1.0 by default.
+  -M, --MASS_array [MASS_ARRAY ...]
+                        The 1d list/array of DNA input (MASS_array), default is [30], one-to-one corresponding to "T_array".
+  -T, --T_array [T_ARRAY ...]
+                        The 1d list/array of the number of templates in the saturated state (T_array), default is [3892], one-to-one corresponding to "MASS_array".
+  -V, --VAF_array [VAF_ARRAY ...]
+                        The 1d list/array of VAF of the mutations (VAF_array), default is [0.0002], one-to-one corresponding to "VAFcolor_array".
+  -C, --VAFcolor_array [VAFCOLOR_ARRAY ...]
+                        The 1d list/array of colors for the VAFs (VAFcolor_array), default is ["orangered"], one-to-one corresponding to "VAF_array".
+  -L, --rule_list [RULE_LIST ...]
+                        The 1d list of mutation detection rules (rule_list), default is ["inclusion_4-1+0"].
+  -D, --targetDEP_array [TARGETDEP_ARRAY ...]
+                        The 1d list/array of target sequencing depth for down-sampling (targetDEP_array), default is [5000,10000,15000,20000].
+  -P, --DEP             The raw sequencing depth in the saturated state (DEP), minimum 60000 by default, should be greater than the maximum of "targetDEP_array".
+  -x, --n_whole_repeat  Repetition number for the whole process from the templates initialization to the down-sampling procedure (n_whole_repeat), 10 by default.
+  -y, --n_TmSamp_repeat
+                        Repetition number for the generation of mutated templates and reads (n_TmSamp_repeat), 10 by default.
+  -z, --n_DSrepeat      Repetition number for the downsampling procedure (n_DSrepeat), 10 by default.
+  -n, --n_cpu           Parallel number for the repetition of the whole process (n_cpu), should be <= n_whole_repeat, 1 by default.
+  -c, --heatmap_colormap
+                        The colormap used for the heatmap plotting (heatmap_colormap), "hot_r" by default.
+  -d, --debug
+```
+
+
+
+
+## Example
 An example of running DELFMUT on a linux system:
 ```
 outputPath_prefix=../DELFMUT/maxDep45000/output && mkdir -p ${outputPath_prefix}
-s=0.6
+s=0.55
 R_bias=1.0
 T_bias=1.0
 output_path=${outputPath_prefix}/s${s}/Rbias${R_bias} && mkdir -p ${output_path}
