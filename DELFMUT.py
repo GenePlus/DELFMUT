@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on May 26 2022
+@author: wu guiying
 
-@author: wuguiying
+DELFMUT is a sequencing Depth Estimation model designed for the stable detection of Low-Frequency MUTations in duplex sequencing.
 """
 
 import argparse
@@ -27,6 +28,20 @@ import seaborn as sns
 
 
 class Template():
+    '''
+    Class generating one template
+    
+    :param TempID: The ID of the template.
+    :param TempType: The type of the template, 'DoubleStrand', 'SingleStrandPos' or 'SingleStrandNeg'.
+    :param mutLabel: Indicating whether this is a mutated template. '0' indicates 'no', '1' indicates 'yes'.
+    :param R1_ID_array: ID Array of the reads corresponding to the forward strand of the template.
+    :param R1_count: Total number of the reads corresponding to the forward strand of the template.
+    :param R2_ID_array: ID Array of the reads corresponding to the reverse strand of the template.
+    :param R2_count: Total number of the reads corresponding to the reverse strand of the template.
+
+    :return: One template.  
+    '''
+    
     TempID = 0
     TempType = ''
     mutLabel = 0
@@ -48,11 +63,31 @@ class Template():
 
 
 def posNegBino_mean_fun(x, mean_no0, alpha_with0):
+    '''
+    The relationship function between the mean of zero-truncated negative binomial distribution and the mean of the standard negative binomial distribution 
+    
+    :param x: The mean parameter of the standard negative binomial distribution.
+    :param mean_no0: The mean parameter of the zero-truncated negative binomial distribution.
+    :param alpha_with0: The alpha parameter of the standard negative binomial distribution.
+
+    :return f: The relationship function.  
+    '''
+    
     f = x / (1 - (1 + alpha_with0 * x) ** (-1 / alpha_with0) ) - mean_no0
     return f
 
 
 def posNB_rand_fun(n_rand, mean_no0, alpha_with0_NB=0.3):
+    '''
+    Generate a random array without 0 from negative binomial distribution after the mean transformation from the mean of zero-truncated negative binomial to standard negative binomial distribution
+    
+    :param n_rand: The number of random numbers to generate.
+    :param mean_no0: The mean parameter of the zero-truncated negative binomial distribution.
+    :param alpha_with0_NB: The alpha parameter of the standard negative binomial distribution.
+
+    :return rand_array_no0: A random array without 0.   
+    '''
+    
     mean_with0_NB = fsolve(posNegBino_mean_fun, x0=2.0, args=(mean_no0,alpha_with0_NB))[0] 
     var_with0_NB = mean_with0_NB * (1 + alpha_with0_NB * mean_with0_NB)
     
@@ -74,6 +109,16 @@ def posNB_rand_fun(n_rand, mean_no0, alpha_with0_NB=0.3):
 
 
 def fine_tune_no0(rand_array, n_rand, expect_sum):    
+    '''
+    Fine-tunning the random array without 0 to the array with the sum being the expected sum    
+    
+    :param rand_array: The random array without 0.
+    :param n_rand: The number of random numbers to generate.
+    :param expect_sum: The expected sum of the elements in the random array.
+
+    :return rand_array: A random array with the sum being 'expect_sum'.   
+    '''
+    
     if len(rand_array) != n_rand:
         return False
     
@@ -111,6 +156,19 @@ def fine_tune_no0(rand_array, n_rand, expect_sum):
 
 
 def Templates_init_FUN(T, n_DT, n_R1T, n_R2T, R1, R2):
+    '''
+    Initialization of templates   
+    
+    :param T: The number of templates to generate.
+    :param n_DT: The number of Double-stranded Templates.
+    :param n_R1T: The number of Templates having Reads from the positive strands, including the Double-stranded Templates.
+    :param n_R2T: The number of Templates having Reads from the negative strands, including the Double-stranded Templates.
+    :param R1: The number of Reads from the positive strands.
+    :param R2: The number of Reads from the negative strands.
+
+    :return T_list: A list of initialized templates.  
+    '''
+    
     T_list = [] 
     for i in arange(0,T):
         
@@ -167,6 +225,20 @@ def Templates_init_FUN(T, n_DT, n_R1T, n_R2T, R1, R2):
 
 
 def mutLabel_init_FUN(T_list, T, Tm):   
+    '''
+    Initialization of the mutation labels of the templates. '0' indicates 'no', '1' indicates 'yes'.
+    
+    :param T_list: The list of initialized Templates.
+    :param T: The number of Templates.
+    :param Tm: The number of mutated Templates.
+
+    :return T_list: The list of Templates assigned with mutation labels.  
+    :return Tm_ID_array: ID array of the mutated Templates.  
+    :return Rm: Total number of the mutated Reads from both strands.  
+    :return Rm1: The number of mutated Reads from the positive strands.  
+    :return Rm2: The number of mutated Reads from the negative strands.  
+    '''
+    
     Tm_ID_array = sort( random.choice(arange(0,T), Tm, replace=False) )
     
     Rm1 = 0
@@ -185,7 +257,16 @@ def mutLabel_init_FUN(T_list, T, Tm):
 
 
 
-def intersect2D(array1D, array2D):     
+def intersect2D(array1D, array2D):    
+    '''
+    ID(row) intersection between 'array1D' and each row of 'array2D'
+    
+    :param array1D: One dimentional ID array.
+    :param array2D: Two dimentional ID array.
+
+    :return N_rowIntersect_array: One dimentional array with each element representing the number of ID intersection between 'array1D' and each row of 'array2D'.  
+    '''
+    
     if len(array1D) <= 40:   
         N_rowIntersect_array = zeros(array2D.shape[0]).astype(int)
         for x in array1D:
@@ -199,6 +280,20 @@ def intersect2D(array1D, array2D):
 
 
 def DS_and_stat_FUN(T_list, targetDEP_array, n_DSrepeat, DEP, Tm, Tm_ID_array, rule_df):
+    '''
+    Reads down-sampling of the simulated saturated sequencing data and statistics of the mutation detection frequencies.
+    
+    :param T_list: The list of Templates assigned with mutation labels.
+    :param targetDEP_array: A array of target sequencing depth for down-sampling.
+    :param n_DSrepeat: The number of repetitions of downsampling.
+    :param DEP: The raw sequencing depth in the saturated state.
+    :param Tm: The number of mutated Templates.
+    :param Tm_ID_array: ID array of the mutated Templates.  
+    :param rule_df: A dataframe of the mutation detection rules.  
+
+    :return detect_freq_D3array: A three dimentional array of the mutation detection frequencies (dim 0: detection rule; dim 1: serial number of the repeated generation of mutated templates and reads; dim2: target sequencing depth for down-sampling).  
+    '''
+    
     n_targetDEP = len(targetDEP_array)
     n_rules = rule_df.shape[0] 
     detect_freq_D3array = zeros((n_rules, 1, n_targetDEP)) 
@@ -267,7 +362,31 @@ def DS_and_stat_FUN(T_list, targetDEP_array, n_DSrepeat, DEP, Tm, Tm_ID_array, r
 def whole_process_FUN(repeat_whole, T, n_DT, n_R1T, n_R2T, DEP, R1, R2,
                       Tm_float, n_TmSamp_repeat,
                       targetDEP_array, n_DSrepeat, 
-                      rule_df, n_rules):   
+                      rule_df, n_rules):  
+    '''
+    The whole process from the templates initialization to the down-sampling procedure
+    
+    :param repeat_whole: The serial number of the repetitions of the whole process.
+    :param T: The number of templates.
+    :param n_DT: The number of Double-stranded Templates.
+    :param n_R1T: The number of Templates having Reads from the positive strands, including the Double-stranded Templates.
+    :param n_R2T: The number of Templates having Reads from the negative strands, including the Double-stranded Templates.
+    :param DEP: The raw sequencing depth in the saturated state.
+    :param R1: The number of Reads from the positive strands.
+    :param R2: The number of Reads from the negative strands.
+    :param Tm_float: The float number of mutated Templates.
+    :param n_TmSamp_repeat: The number of repetitions of the generation of mutated templates and reads.
+    :param targetDEP_array: A array of target sequencing depth for down-sampling.
+    :param n_DSrepeat: The number of repetitions of downsampling.
+    :param rule_df: The dataframe of the mutation detection rules.  
+    :param n_rules: The number of the mutation detection rules.  
+
+    :return repeatTm_detect_freq_D3array: A three dimentional array of the mutation detection frequencies with
+                                          deep(dim 0): detection rule; 
+                                          height(dim 1): serial number of the repeated generation of mutated templates and reads; 
+                                          width(dim 2): target sequencing depth for down-sampling; 
+                                          value: detection frequency.                                          
+    '''
     
     print("\n\n---- Repeat time of the whole process:", repeat_whole+1, "----")
     
@@ -309,10 +428,40 @@ def whole_process_FUN(repeat_whole, T, n_DT, n_R1T, n_R2T, DEP, R1, R2,
 
 
 def  one_MASS_VAF_FUN(MASS, T, VAF, DEP=80000,
-                      s=0.6, t=0.2, R_bias=0.9, 
+                      s=0.55, t=0.225, R_bias=1.0, 
                       rule_list=["inclusion_2-1+0"], targetDEP_array=array([2000]), 
                       n_whole_repeat=10, n_TmSamp_repeat=10, n_DSrepeat=100,
                       n_cpu=1):
+    '''
+    Statistics of the detection frequency results in multiple repeats of the whole processes, for only one MASS and only one VAF
+    
+    :param MASS: The amount of DNA input.
+    :param T: The number of templates.
+    :param VAF: The variant allele frequency (VAF) of the mutation.
+    :param DEP: The raw sequencing depth in the saturated state.
+    :param s: The ratio of Double-stranded Templates.
+    :param t: The ratio of Positive Single-stranded Templates
+    :param R_bias: The Reads-level strand bias.
+    :param rule_list: A list of the mutation detection rules.  
+    :param targetDEP_array: A array of target sequencing depth for down-sampling.
+    :param n_whole_repeat: The number of repetitions of the whole process from the templates initialization to the down-sampling procedure.
+    :param n_TmSamp_repeat: The number of repetitions of the generation of mutated templates and reads.
+    :param n_DSrepeat: The number of repetitions of downsampling.
+    :param n_cpu: The number of cpus available for this parallel program.  
+
+    :return mean_detect_freq_D2array: A two dimentional array of the mean of the mutation detection frequencies with
+                                          height(dim 0): detection rule; 
+                                          width(dim 1): target sequencing depth for down-sampling; 
+                                          value: mean of detection frequencies.  
+    :return median_detect_freq_D2array: A two dimentional array of the median of the mutation detection frequencies with
+                                          height(dim 0): detection rule; 
+                                          width(dim 1): target sequencing depth for down-sampling; 
+                                          value: median of detection frequencies.   
+    :return sd_detect_freq_D2array: A two dimentional array of the sd of the mutation detection frequencies with
+                                          height(dim 0): detection rule; 
+                                          width(dim 1): target sequencing depth for down-sampling; 
+                                          value: sd of detection frequencies.                                            
+    '''
    
     print("\nDEP:", DEP)
     print("T:", T)
@@ -357,7 +506,7 @@ def  one_MASS_VAF_FUN(MASS, T, VAF, DEP=80000,
     elif Tm_float > 0:
         n_parallel = min(mp_cpu_count()-1, n_cpu, n_whole_repeat)
         print('\n%% Number of running processers:', n_parallel, '%%')
-        pool = mp_Pool()
+        pool = mp_Pool(n_parallel)
         
         repeatWhole_detect_freq_D3array_list = pool.map(partial(whole_process_FUN, 
                                                                 T=T, n_DT=n_DT, n_R1T=n_R1T, n_R2T=n_R2T, DEP=DEP, R1=R1, R2=R2,
@@ -409,6 +558,25 @@ def linePlot_FUN(detect_freq_D4array,
                  MASS_array, VAF_array, rule_list, targetDEP_array,
                  VAFcolor_array,
                  output_path, flag):
+    '''
+    Line plot of the detection frequency (x-axis: raw sequencing depth; y-axis: detection frequency; different color corresponds to different VAF; given DNA input and detection rule)
+    
+    :param detect_freq_D4array: A four dimensional array of the mutation detection frequencies with
+                                outermost(dim 0): DNA input; 
+                                deep(dim 1): VAF; 
+                                height(dim 2): detection rule; 
+                                width(dim 3): target sequencing depth for down-sampling;
+                                value: detection frequency. 
+    :param MASS_array: The array of DNA input.
+    :param VAF_array: The array of VAF of the mutation.
+    :param rule_list: A list of the mutation detection rules.  
+    :param targetDEP_array: A array of target sequencing depth for down-sampling.
+    :param VAFcolor_array: A array of colors for the VAFs, one-to-one corresponding to 'VAF_array'.
+    :param output_path: The saving directory of the outputs.
+    :param flag: A flag used to distinguish between different types of outputs.
+
+    :return result_df: A dataframe saving the data in the figure.                                             
+    '''
     
     y_max = nanmax(detect_freq_D4array) 
     
@@ -487,6 +655,31 @@ def meanSD_linePlot_FUN(mean_detect_freq_D4array, sd_detect_freq_D4array,
                          MASS_array, VAF_array, rule_list, targetDEP_array,
                          VAFcolor_array,
                          output_path, flag):
+    '''
+    Line with error bar plot of the detection frequency (x-axis: raw sequencing depth; y-axis: detection frequency; different color corresponds to different VAF; given DNA input and detection rule)
+    
+    :param mean_detect_freq_D4array: A four dimensional array of the mean of the mutation detection frequencies with
+                                     outermost(dim 0): DNA input; 
+                                     deep(dim 1): VAF; 
+                                     height(dim 2): detection rule; 
+                                     width(dim 3): target sequencing depth for down-sampling;
+                                     value: mean of detection frequencies. 
+    :param sd_detect_freq_D4array: A four dimensional array of the sd of the mutation detection frequencies with
+                                   outermost(dim 0): DNA input; 
+                                   deep(dim 1): VAF; 
+                                   height(dim 2): detection rule; 
+                                   width(dim 3): target sequencing depth for down-sampling;
+                                   value: sd of detection frequencies. 
+    :param MASS_array: The array of DNA input.
+    :param VAF_array: The array of VAF of the mutation.
+    :param rule_list: A list of the mutation detection rules.  
+    :param targetDEP_array: A array of target sequencing depth for down-sampling.
+    :param VAFcolor_array: A array of colors for the VAFs, one-to-one corresponding to 'VAF_array'.
+    :param output_path: The saving directory of the outputs.
+    :param flag: A flag used to distinguish between different types of outputs.
+
+    :return result_df: A dataframe saving the data in the figure.                                             
+    '''
     
     y_max = min(1.0, nanmax(mean_detect_freq_D4array + sd_detect_freq_D4array)) 
     
@@ -573,7 +766,26 @@ def meanSD_linePlot_FUN(mean_detect_freq_D4array, sd_detect_freq_D4array,
 def heatmapPlot_FUN(mean_detect_freq_D4array, 
                     MASS_array, VAF_array, rule_list, targetDEP_array,
                     output_path, flag,
-                    heatmap_colormap="Blues"):
+                    heatmap_colormap="hot_r"):
+    '''
+    Heatmap plot of the detection frequency (x-axis: raw sequencing depth; y-axis: DNA input; given VAF and detection rule)
+    
+    :param mean_detect_freq_D4array: A four dimensional array of the mean of the mutation detection frequencies with
+                                     outermost(dim 0): DNA input; 
+                                     deep(dim 1): VAF; 
+                                     height(dim 2): detection rule; 
+                                     width(dim 3): target sequencing depth for down-sampling;
+                                     value: mean of detection frequencies. 
+    :param MASS_array: The array of DNA input.
+    :param VAF_array: The array of VAF of the mutation.
+    :param rule_list: A list of the mutation detection rules.  
+    :param targetDEP_array: A array of target sequencing depth for down-sampling.
+    :param output_path: The saving directory of the outputs.
+    :param flag: A flag used to distinguish between different types of outputs.
+    :param heatmap_colormap: The name of a group of colors used in the heatmap plot.
+
+    :return True: True.                                             
+    '''
 
     n_rule = len(rule_list)
     n_VAF = len(VAF_array)
@@ -627,8 +839,8 @@ def heatmapPlot_FUN(mean_detect_freq_D4array,
 
 
 def main(output_path, 
-         s=0.4, R_bias=1, T_bias=1,  
-         MASS_array=array([30, 50, 80]), T_array=array([5159, 7787, 12233]), 
+         s=0.55, R_bias=1, T_bias=1,  
+         MASS_array=array([30, 50, 80]), T_array=array([3892, 5772, 9268]), 
          VAF_array=array([0.0002, 0.0005, 0.001, 0.002, 0.005, 0.008]), VAFcolor_array=array(['orangered','goldenrod','limegreen','hotpink','deepskyblue','darkviolet']),
          rule_list=["inclusion_2-1+0", "inclusion_4-1+0", "exclusion_1-1+0", "exclusion_1-2+0", "inclusion_1-2+1", "inclusion_2-2+1", "inclusion_1-2+2", "inclusion_1-3+3"], 
          targetDEP_array=array([2000,5000,8000,10000,15000,20000,25000,30000,35000,40000,45000]), 
@@ -636,6 +848,28 @@ def main(output_path,
          n_whole_repeat=10, n_TmSamp_repeat=10, n_DSrepeat=10, 
          n_cpu=1,
          heatmap_colormap="hot_r"):
+    '''
+    The main function which can be used for multiple MASS, VAF, and detection rules
+    
+    :param output_path: The saving directory of the outputs.
+    :param s: The ratio of Double-stranded Templates.
+    :param R_bias: The Reads-level strand bias.
+    :param T_bias: The Template-level strand bias.
+    :param MASS_array: The array of DNA input.
+    :param T_array: The array of the number of templates, one-to-one corresponding to 'MASS_array'.
+    :param VAF_array: The array of VAF of the mutation.
+    :param VAFcolor_array: A array of colors for the VAFs, one-to-one corresponding to 'VAF_array'.
+    :param rule_list: A list of the mutation detection rules.  
+    :param targetDEP_array: A array of target sequencing depth for down-sampling.
+    :param DEP: The raw sequencing depth in the saturated state.
+    :param n_whole_repeat: The number of repetitions of the whole process from the templates initialization to the down-sampling procedure.
+    :param n_TmSamp_repeat: The number of repetitions of the generation of mutated templates and reads.
+    :param n_DSrepeat: The number of repetitions of downsampling.
+    :param n_cpu: The number of cpus available for this parallel program. 
+    :param heatmap_colormap: The name of a group of colors used in the heatmap plot.
+
+    :return True: True.                                                                                       
+    '''
     
     os.makedirs(output_path, exist_ok=True)
 
@@ -763,43 +997,43 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
     parser.add_argument('-o', '--output_path', required=True,
-                        help='Output directory.')
+                        help='Output directory (output_path).')
     
-    parser.add_argument('-s', '--s', type=float, default=0.4, required=False,
-                        help='The ratio of Double-stranded Templates (DT), 0.4 by default.')
+    parser.add_argument('-s', '--s', type=float, default=0.55, required=False,
+                        help='The ratio of Double-stranded Templates (s), 0.55 by default.')
     parser.add_argument('-r', '--R_bias', type=float, default=1.0, required=False,
-                        help='Reads-level strand bias, 1.0 by default.')
+                        help='Reads-level strand bias (R_bias), 1.0 by default.')
     parser.add_argument('-t', '--T_bias', type=float, default=1.0, required=False,   
-                        help='Template-level strand bias, 1.0 by default.')
+                        help='Template-level strand bias (T_bias), 1.0 by default.')
     
     parser.add_argument('-M', '--MASS_array', nargs='+', type=float, default=[30], required=False,
-                        help='The 1d list/array of DNA input mass, default is [30], one-to-one correspond to "T_array".')
-    parser.add_argument('-T', '--T_array', nargs='+', type=int,  default=[4000], required=False,   
-                        help='The 1d list/array of the primary templates number in the saturated state, default is [4000], one-to-one correspond to "MASS_array".')
+                        help='The 1d list/array of DNA input (MASS_array), default is [30], one-to-one corresponding to "T_array".')
+    parser.add_argument('-T', '--T_array', nargs='+', type=int,  default=[3892], required=False,   
+                        help='The 1d list/array of the number of templates in the saturated state (T_array), default is [3892], one-to-one corresponding to "MASS_array".')
     parser.add_argument('-V', '--VAF_array', nargs='+', type=float,  default=[0.0002], required=False,
-                        help='The 1d list/array of VAF for the mutation sites, default is [0.0002], one-to-one correspond to "VAFcolor_array".')
+                        help='The 1d list/array of VAF of the mutations (VAF_array), default is [0.0002], one-to-one corresponding to "VAFcolor_array".')
     parser.add_argument('-C', '--VAFcolor_array', nargs='+', type=str,  default=["orangered"], required=False,
-                        help='The 1d list/array of colors for the VAFs, default is ["orangered"], one-to-one correspond to "VAF_array".')
+                        help='The 1d list/array of colors for the VAFs (VAFcolor_array), default is ["orangered"], one-to-one corresponding to "VAF_array".')
     parser.add_argument('-L', '--rule_list', nargs='+', type=str,  default=["inclusion_4-1+0"], required=False,
-                        help='The 1d list of detection rules for the mutation sites, default is ["inclusion_4-1+0"].')
+                        help='The 1d list of mutation detection rules (rule_list), default is ["inclusion_4-1+0"].')
     parser.add_argument('-D', '--targetDEP_array', nargs='+', type=int, default=[5000,10000,15000,20000], required=False,
-                        help='The 1d list/array of target downsampling depth, default is [5000,10000,15000,20000].')
+                        help='The 1d list/array of target sequencing depth for down-sampling (targetDEP_array), default is [5000,10000,15000,20000].')
     
     parser.add_argument('-P', '--DEP', type=int, default=60000, required=False,
-                        help='The primary sequencing depth in the saturated state, minimum 60000 by default, should be greater than the maximum of "targetDEP_array".')
+                        help='The raw sequencing depth in the saturated state (DEP), minimum 60000 by default, should be greater than the maximum of "targetDEP_array".')
     
     parser.add_argument('-x', '--n_whole_repeat', type=int, default=10, required=False,
-                        help='Repetition number for the whole process, 10 by default.')
+                        help='Repetition number for the whole process from the templates initialization to the down-sampling procedure (n_whole_repeat), 10 by default.')
     parser.add_argument('-y', '--n_TmSamp_repeat', type=int, default=10, required=False,
-                        help='Repetition number for the mutated templates sampling, 10 by default.')
+                        help='Repetition number for the generation of mutated templates and reads (n_TmSamp_repeat), 10 by default.')
     parser.add_argument('-z', '--n_DSrepeat', type=int, default=10, required=False,
-                        help='Repetition number for the downsampling procedure, 10 by default.')
+                        help='Repetition number for the downsampling procedure (n_DSrepeat), 10 by default.')
     
     parser.add_argument('-n', '--n_cpu', type=int, default=1, required=False, 
-                        help='Parallel number for the repetition of the whole process, should be <= n_whole_repeat, 1 by default.')
+                        help='Parallel number for the repetition of the whole process (n_cpu), should be <= n_whole_repeat, 1 by default.')
     
     parser.add_argument('-c', '--heatmap_colormap', type=str, default="hot_r", required=False,
-                        help='The colormap used for the heatmap plotting, "hot_r" by default.')
+                        help='The colormap used for the heatmap plotting (heatmap_colormap), "hot_r" by default.')
 
     parser.add_argument('-d', '--debug', action='store_true')
 
